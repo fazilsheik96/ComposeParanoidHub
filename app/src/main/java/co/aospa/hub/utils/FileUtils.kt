@@ -2,10 +2,12 @@ package co.aospa.hub.utils
 
 import android.content.Context
 import android.net.Uri
+import android.os.storage.StorageManager
 import android.util.Log
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.IOException
 import java.security.MessageDigest
 import java.util.zip.ZipFile
 import kotlin.math.ln
@@ -84,6 +86,33 @@ object FileUtils {
         }
         Log.e("GetZipOffset", "Entry $entryPath not found")
         throw IllegalArgumentException("The given entry was not found")
+    }
+
+    fun isEncrypted(context: Context, file: File?): Boolean {
+        val sm = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+        return file?.let { sm.isEncrypted(it) } ?: false
+    }
+
+    @Throws(IOException::class)
+    fun copyFile(sourceFile: File, destFile: File) {
+        if (!sourceFile.exists()) {
+            Log.e("CopyFile", "Source file does not exist")
+            return
+        }
+
+        try {
+            FileInputStream(sourceFile).channel.use { sourceChannel ->
+                FileOutputStream(destFile).channel.use { destChannel ->
+                    destChannel.transferFrom(sourceChannel, 0, sourceChannel.size())
+                }
+            }
+        } catch (e: IOException) {
+            Log.e("CopyFile", "Could not copy file", e)
+            if (destFile.exists()) {
+                destFile.delete()
+            }
+            throw e
+        }
     }
 
     fun uriToFile(uri: Uri, context: Context): File? {
